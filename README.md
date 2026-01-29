@@ -1,0 +1,1 @@
+Hello to whoever is here! This is a project of mine to understand how .wav files and fourier transforms work. The code might be cursed (especially around file reading), but at least it taught me something.
