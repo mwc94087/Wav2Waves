@@ -19,7 +19,7 @@ private:
 };
 
 double [[nodiscard]] CosineWave::getValueAtTime(double t) {
-	return cos(t * tau * frequency + phase) * amplitude;
+	return cos(t * tau * frequency - phase) * amplitude;
 }
 
 // 16 bit pcm class
