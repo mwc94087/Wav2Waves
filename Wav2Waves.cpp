@@ -5,6 +5,7 @@
 #include <string>
 #include <fstream>
 
+#include "WavFile.h"
 
 using namespace std;
 
@@ -30,7 +31,7 @@ int main()
 		inputFile.open(filePath, ios_base::binary);
 	}
 
-
+	WavFile::Chunk* chunkies = WavFile::readFile(inputFile);
 
 	return 0;
 }
