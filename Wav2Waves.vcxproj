@@ -131,9 +131,6 @@
     <ClCompile Include="WavSignal.ixx" />
     <ClCompile Include="Wav2Waves.cpp" />
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="WavFile.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
