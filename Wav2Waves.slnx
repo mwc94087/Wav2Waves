@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="Wav2Waves.vcxproj" />
+  <Project Path="Wav2Waves.vcxproj" Id="fac64303-6270-4b38-a3e0-77af3fdfb5ef" />
 </Solution>

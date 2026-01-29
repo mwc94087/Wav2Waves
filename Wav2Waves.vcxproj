@@ -127,6 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="WavReader.ixx" />
     <ClCompile Include="Wav2Waves.cpp" />
   </ItemGroup>
   <ItemGroup>

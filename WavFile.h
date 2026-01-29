@@ -42,6 +42,9 @@ namespace WavFile {
 
 	struct RiffData {
 		uint32_t riffType;
+
+		Chunk* dataChunk = nullptr;
+		Chunk* fmtChunk = nullptr;
 	};
 
 	struct FmtData {
@@ -81,6 +84,7 @@ namespace WavFile {
 
 		switch (chunkId) {
 		case ckId_RIFF: {
+			println(cout, "Reading RIFF chunk");
 			// Add riff data
 			RiffData* data = new RiffData;
 			chunk->data = data;
@@ -96,12 +100,21 @@ namespace WavFile {
 			}
 
 			while (pos < endPos) {
-				chunk->subchunks.push_back(readChunk(input, pos));
+				Chunk* ck = readChunk(input, pos);
+				if (ck->id == ckId_FMT) {
+					data->fmtChunk = ck;
+				}
+				else if (ck->id == ckId_DATA) {
+					data->dataChunk = ck;
+				}
+
+				chunk->subchunks.push_back(ck);
 			}
 
 			break;
 		}
 		case ckId_FMT: {
+			println(cout, "Reading FMT chunk");
 			FmtData* data = new FmtData;
 			chunk->data = data;
 
@@ -114,7 +127,7 @@ namespace WavFile {
 			input.read((char*)(&data->nBlockAlign), 2);
 			input.read((char*)(&data->wBitsPerSample), 2);
 
-			if (chunkSize != 16) {
+			if (chunkSize != 16 || data->wFormatTag != 1) {
 				println(cout, "Warning: wav file might be compressed");
 			}
 
@@ -123,6 +136,7 @@ namespace WavFile {
 			break;
 		}
 		case ckId_DATA: {
+			println(cout, "Reading DATA chunk");
 			RawData* data = new RawData;
 			chunk->data = data;
 
@@ -134,11 +148,12 @@ namespace WavFile {
 
 			break;
 		}
-		default:
-			println(cout, "Skipped: Unknown chunk \"{}\"", std::string((char*)(&chunkId), 4));
+		default: {
+			println(cout, "Skipped Unknown chunk \"{}\"", std::string((char*)(&chunkId), 4));
 			pos = endPos;
 			chunkId = ckId_NONE;
 			break;
+		}
 		}
 
 		return chunk;
@@ -158,6 +173,8 @@ namespace WavFile {
 		else {
 			Chunk* out = readChunk(input, pos);
 			println(cout, "Read {} bytes", pos);
+
+			return out;
 		}
 	}
 }
