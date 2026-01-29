@@ -1,20 +1,60 @@
-export module WavReader;
-
+export module WavSignal;
 import std;
 
 using namespace std;
 
+#define clamp(x, low, high) ((x) < (low) ? (low) : ((x) > (high) ? (high) : (x)))
+
+constexpr double tau = numbers::pi * 2;
+
+// cosine class to represent a cosine
+export class CosineWave {
+public:
+	double frequency = 0; // cycles per second
+	double amplitude = 0; // [-1, 1]
+	double phase = 0; // [0, tau)
+
+	double getValueAtTime(double t);
+private:
+};
+
+double [[nodiscard]] CosineWave::getValueAtTime(double t) {
+	return cos(t * tau * frequency + phase) * amplitude;
+}
+
 // 16 bit pcm class
 export class WavSignal {
 public:
-	bool LoadFromFile(ifstream& input);
+	void SetCosine(CosineWave wave, int channel);
+	bool ReadFromFile(ifstream& input);
 	void WriteToFile(ofstream& output);
 
-	vector<vector<int16_t>> data;
-	uint32_t sampleRate = 44100;
+	void copyChannel(uint32_t from, uint32_t to);
+
+	void setChannels(uint32_t count);
+	void setSamples(uint32_t count);
+	void clear();
+
+	uint32_t sampleRate = 0;
+private:
+	uint32_t channels = 0;
+	uint32_t samples = 0;
+
+	vector<vector<double>> data;
 };
 
-bool WavSignal::LoadFromFile(ifstream& input) {
+void WavSignal::SetCosine(CosineWave wave, int channel) {
+	if (channel >= data.size())
+		throw out_of_range("Index out of range");
+
+	for (uint32_t i = 0; i < samples; ++i) {
+		double time = (double)i / (double)sampleRate;
+
+		data.at(channel).at(i) = wave.getValueAtTime(time);
+	}
+}
+
+bool WavSignal::ReadFromFile(ifstream& input) {
 	char chunkId[8];
 	uint32_t chunkSize = 0;
 
@@ -32,8 +72,6 @@ bool WavSignal::LoadFromFile(ifstream& input) {
 
 	// Read chunks until format and data are found
 	bool fmtFound = false;
-	uint32_t samples = 0;
-	uint16_t channels = 0;
 
 	bool dataFound = false;
 	uint32_t dataPos = 0;
@@ -83,28 +121,25 @@ bool WavSignal::LoadFromFile(ifstream& input) {
 	// Split data into channels
 	data.clear();
 	data.resize(channels);
-	for (int i = 0; i < channels; ++i) data[i].resize(samples);
+	for (uint32_t i = 0; i < channels; ++i) data[i].resize(samples);
 
 	input.seekg(dataPos);
 
 	int16_t sample = 0;
 
-	for (int i = 0; i < dataSize / bytesPerBlock; ++i) {
-		for (int j = 0; j < channels; j++) {
+	for (uint32_t i = 0; i < dataSize / bytesPerBlock; ++i) {
+		for (uint32_t j = 0; j < channels; j++) {
 			input.read((char*)&sample, 2);
-			data[j][i] = sample;
+
+			// Convert 16 bit int into double [-1, 1]
+			data[j][i] = ((double)sample + 0.5f) / 32767.5f; 
 		}
 	}
-
-	println(cout, "{} {}", samples, channels);
 
 	return true;
 }
 
 void WavSignal::WriteToFile(ofstream& output) {
-	uint16_t channels = data.size();
-	uint32_t samples = data.at(0).size();
-
 	uint16_t num2;
 	uint32_t num4;
 
@@ -118,7 +153,7 @@ void WavSignal::WriteToFile(ofstream& output) {
 	output.write((char*)&num2, 2);
 	num4 = sampleRate; // Sample rate
 	output.write((char*)&num4, 4);
-	num4 = sampleRate * channels * 2; // Average Bytes Per Second (channels * sample size * sample rate)
+	num4 = channels * 2 * sampleRate; // Average Bytes Per Second (channels * sample size * sample rate)
 	output.write((char*)&num4, 4);
 	num2 = channels * 2; // Block size (bytes)
 	output.write((char*)&num2, 2);
@@ -130,12 +165,15 @@ void WavSignal::WriteToFile(ofstream& output) {
 	num4 = samples * channels * 2; // samples * channels * sample size
 	output.write((char*) & num4, 4);
 
-	println(cout, "{} {}", samples, channels);
+	int16_t sample;
 
-	for (int i = 0; i < samples; ++i) {
-		for (int j = 0; j < channels; j++) {
-			num2 = data.at(j).at(i);
-			output.write((char*)&num2, 2);
+	println(cout, "Array size: {}, {}", data.size(), data.at(data.size() - 1).size());
+
+	for (uint32_t i = 0; i < samples; ++i) {
+		for (uint32_t j = 0; j < channels; j++) {
+			// Convert double [-1, 1] into 16 bit int
+			sample = (int16_t) (data.at(j).at(i) * 32767.5 - 0.5);
+			output.write((char*)&sample, 2);
 		}
 	}
 
@@ -147,3 +185,39 @@ void WavSignal::WriteToFile(ofstream& output) {
 	output.write((char*)&num4, 4);
 	output.seekp(0, ios_base::end);
 }
+
+void WavSignal::copyChannel(uint32_t from, uint32_t to) {
+	if (to >= data.size() || from >= data.size())
+		throw out_of_range("Index out of range");
+
+	data.at(to) = data.at(from);
+}
+
+void WavSignal::setChannels(uint32_t count) {
+	data.resize(count);
+
+	if (channels < data.size()) {
+		for (uint32_t i = channels; i < data.size(); ++i) {
+			data.at(i).resize(samples);
+		}
+	}
+
+	channels = count;
+}
+
+void WavSignal::setSamples(uint32_t count) {
+	for (auto& a : data) {
+		a.resize(count);
+	}
+
+	samples = count;
+}
+
+void WavSignal::clear() {
+	data.clear();
+	samples = 0;
+	channels = 0;
+	sampleRate = 0;
+}
+
+// Float class 
